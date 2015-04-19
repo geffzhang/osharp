@@ -1,13 +1,14 @@
 ﻿// -----------------------------------------------------------------------
 //  <copyright file="IRepository.cs" company="OSharp开源团队">
-//      Copyright (c) 2014 OSharp. All rights reserved.
+//      Copyright (c) 2014-2015 OSharp. All rights reserved.
 //  </copyright>
 //  <last-editor>郭明锋</last-editor>
-//  <last-date>2014-07-16 21:26</last-date>
+//  <last-date>2015-02-06 15:46</last-date>
 // -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
@@ -63,7 +64,9 @@ namespace OSharp.Core.Data
         /// <param name="checkAction">添加信息合法性检查委托</param>
         /// <param name="updateFunc">由DTO到实体的转换委托</param>
         /// <returns>业务操作结果</returns>
-        OperationResult Insert<TAddDto>(ICollection<TAddDto> dtos, Action<TAddDto> checkAction = null, Func<TAddDto, TEntity, TEntity> updateFunc = null)
+        OperationResult Insert<TAddDto>(ICollection<TAddDto> dtos,
+            Action<TAddDto> checkAction = null,
+            Func<TAddDto, TEntity, TEntity> updateFunc = null)
             where TAddDto : IAddDto;
 
         /// <summary>
@@ -111,15 +114,6 @@ namespace OSharp.Core.Data
         int Update(TEntity entity);
 
         /// <summary>
-        /// 使用附带新值的实体更新指定实体属性的值，此方法不支持事务
-        /// </summary>
-        /// <param name="propertyExpresion">属性表达式，提供要更新的实体属性</param>
-        /// <param name="entities">附带新值的实体属性，必须包含主键</param>
-        /// <returns>操作影响的行数</returns>
-        /// <exception cref="System.NotSupportedException"></exception>
-        int Update(Expression<Func<TEntity, object>> propertyExpresion, params TEntity[] entities);
-
-        /// <summary>
         /// 以DTO为载体批量更新实体
         /// </summary>
         /// <typeparam name="TEditDto">更新DTO类型</typeparam>
@@ -127,16 +121,18 @@ namespace OSharp.Core.Data
         /// <param name="checkAction">更新信息合法性检查委托</param>
         /// <param name="updateFunc">由DTO到实体的转换委托</param>
         /// <returns>业务操作结果</returns>
-        OperationResult Update<TEditDto>(ICollection<TEditDto> dtos, Action<TEditDto> checkAction = null, Func<TEditDto, TEntity, TEntity> updateFunc = null)
+        OperationResult Update<TEditDto>(ICollection<TEditDto> dtos,
+            Action<TEditDto> checkAction = null,
+            Func<TEditDto, TEntity, TEntity> updateFunc = null)
             where TEditDto : IEditDto<TKey>;
 
         /// <summary>
-        /// 实体存在性检查
+        /// 检查实体是否存在
         /// </summary>
         /// <param name="predicate">查询条件谓语表达式</param>
         /// <param name="id">编辑的实体标识</param>
         /// <returns>是否存在</returns>
-        bool ExistsCheck(Expression<Func<TEntity, bool>> predicate, TKey id = default(TKey));
+        bool CheckExists(Expression<Func<TEntity, bool>> predicate, TKey id = default(TKey));
 
         /// <summary>
         /// 查找指定主键的实体
@@ -159,12 +155,21 @@ namespace OSharp.Core.Data
         /// <returns>查询数据集</returns>
         IQueryable<TEntity> GetIncludes(params string[] paths);
 
+        /// <summary>
+        /// 创建一个原始 SQL 查询，该查询将返回此集中的实体。 
+        /// 默认情况下，上下文会跟踪返回的实体；可通过对返回的 DbRawSqlQuery 调用 AsNoTracking 来更改此设置。 请注意返回实体的类型始终是此集的类型，而不会是派生的类型。 如果查询的一个或多个表可能包含其他实体类型的数据，则必须编写适当的 SQL 查询以确保只返回适当类型的实体。 与接受 SQL 的任何 API 一样，对任何用户输入进行参数化以便避免 SQL 注入攻击是十分重要的。 您可以在 SQL 查询字符串中包含参数占位符，然后将参数值作为附加参数提供。 您提供的任何参数值都将自动转换为 DbParameter。 context.Set(typeof(Blog)).SqlQuery("SELECT * FROM dbo.Posts WHERE Author = @p0", userSuppliedAuthor); 或者，您还可以构造一个 DbParameter 并将它提供给 SqlQuery。 这允许您在 SQL 查询字符串中使用命名参数。 context.Set(typeof(Blog)).SqlQuery("SELECT * FROM dbo.Posts WHERE Author = @author", new SqlParameter("@author", userSuppliedAuthor));
+        /// </summary>
+        /// <param name="trackEnabled">是否跟踪返回实体</param>
+        /// <param name="sql">SQL 查询字符串。</param>
+        /// <param name="parameters">要应用于 SQL 查询字符串的参数。 如果使用输出参数，则它们的值在完全读取结果之前不可用。 这是由于 DbDataReader 的基础行为而导致的，有关详细信息，请参见 http://go.microsoft.com/fwlink/?LinkID=398589。</param>
+        /// <returns></returns>
+        IEnumerable<TEntity> SqlQuery(string sql, bool trackEnabled = true, params object[] parameters);
 #if NET45
-    /// <summary>
-    /// 异步插入实体
-    /// </summary>
-    /// <param name="entity">实体对象</param>
-    /// <returns>操作影响的行数</returns>
+        /// <summary>
+        /// 异步插入实体
+        /// </summary>
+        /// <param name="entity">实体对象</param>
+        /// <returns>操作影响的行数</returns>
         Task<int> InsertAsync(TEntity entity);
 
         /// <summary>
@@ -210,13 +215,12 @@ namespace OSharp.Core.Data
         Task<int> UpdateAsync(TEntity entity);
 
         /// <summary>
-        /// 异步使用附带新值的实体更新指定实体属性的值，此方法不支持事务
+        /// 异步检查实体是否存在
         /// </summary>
-        /// <param name="propertyExpresion">属性表达式，提供要更新的实体属性</param>
-        /// <param name="entities">附带新值的实体属性，必须包含主键</param>
-        /// <returns>操作影响的行数</returns>
-        /// <exception cref="System.NotSupportedException"></exception>
-        Task<int> UpdateAsync(Expression<Func<TEntity, object>> propertyExpresion, params TEntity[] entities);
+        /// <param name="predicate">查询条件谓语表达式</param>
+        /// <param name="id">编辑的实体标识</param>
+        /// <returns>是否存在</returns>
+        Task<bool> CheckExistsAsync(Expression<Func<TEntity, bool>> predicate, TKey id = default(TKey));
 
         /// <summary>
         /// 异步查找指定主键的实体
